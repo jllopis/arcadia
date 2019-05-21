@@ -1,6 +1,10 @@
-package connector
+package connectors
 
-import "time"
+import (
+	"crypto/rand"
+	"encoding/base64"
+	"time"
+)
 
 type Connector interface {
 	// Name returns the label for the service
@@ -81,4 +85,17 @@ type ConnectorSubscription struct {
 	Fn      func(msg []byte)
 	Ch      chan []byte
 	Class   string // specify if subscribing either with "Listen" or "On" methods
+}
+
+func GenID() string {
+	size := 16
+	b := make([]byte, size)
+	if _, err := rand.Read(b); err != nil {
+		t, err := time.Now().MarshalText()
+		if err != nil {
+			return base64.URLEncoding.EncodeToString([]byte(err.Error()))
+		}
+		return base64.URLEncoding.EncodeToString(t)
+	}
+	return base64.URLEncoding.EncodeToString(b)
 }
