@@ -10,7 +10,16 @@ import (
 	"github.com/jllopis/retry"
 )
 
-var _ connectors.Connector = (*Connector)(nil)
+// var _ connectors.Connector = (*Connector)(nil)
+
+const (
+	// QoS_ZERO specifies "at most once"
+	QoS_ZERO = byte(0)
+	// QoS_ONE specifies "at least once"
+	QoS_ONE = byte(1)
+	// QoS_TWO specifies "exactly once"
+	QoS_TWO = byte(2)
+)
 
 type Connector struct {
 	name               string
@@ -22,13 +31,18 @@ type Connector struct {
 }
 
 func New(host string) *Connector {
-	return &Connector{
+	c := &Connector{
 		name: "MQTT Broker",
 		clientOptions: MQTT.NewClientOptions().
 			AddBroker(host).
 			SetAutoReconnect(true).
 			SetClientID(connectors.GenID()),
+		subscriptions: map[string]*connectors.ConnectorSubscription{},
 	}
+	c.SetOnConnectHandler(MQTT.OnConnectHandler(c.mqttOnConnect))
+	c.SetConnectionLostHandler(MQTT.ConnectionLostHandler(c.mqttLostConnection))
+
+	return c
 }
 
 // Connect returns true if connection to mqtt is established
@@ -96,6 +110,7 @@ func (c *Connector) Disconnect() {
 	return
 }
 
-func (c *Connector) Close() {
+func (c *Connector) Close() error {
 	c.Disconnect()
+	return nil
 }
