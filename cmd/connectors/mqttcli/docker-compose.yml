@@ -1,0 +1,15 @@
+version: '3'
+
+services:
+        vernemq:
+                image: erlio/docker-vernemq:1.8.0-alpine
+                container_name: "mqtt"
+                ports:
+                - "1883:1883"
+                - "9883:9883"
+                environment:
+                - DOCKER_VERNEMQ_ALLOW_ANONYMOUS=on
+                - DOCKER_VERNEMQ_LOG__CONSOLE__LEVEL=debug
+                labels:
+                - "local.example.description=VerneMQ v1.8.0 MQTT server"
+
