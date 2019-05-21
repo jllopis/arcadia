@@ -1,0 +1,9 @@
+github.com/eclipse/paho.mqtt.golang v1.2.0 h1:1F8mhG9+aO5/xpdtFkW4SxOJB67ukuDC3t2y2qayIX0=
+github.com/eclipse/paho.mqtt.golang v1.2.0/go.mod h1:H9keYFcgq3Qr5OUJm/JZI/i6U7joQ8SYLhZwfeOo6Ts=
+github.com/jllopis/retry v0.0.0-20150403204018-ef012c8afd3f h1:RvbcUEg/6HLXfdfwshLVRhwRIy9Jz1w7NR7zpRAywJM=
+github.com/jllopis/retry v0.0.0-20150403204018-ef012c8afd3f/go.mod h1:bptpOArvPlBQHGHV++otp1ZnU8RGGCxGTslu0fzqh2U=
+golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+golang.org/x/net v0.0.0-20190520210107-018c4d40a106 h1:EZofHp/BzEf3j39/+7CX1JvH0WaPG+ikBrqAdAPf+GM=
+golang.org/x/net v0.0.0-20190520210107-018c4d40a106/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=

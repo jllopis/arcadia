@@ -1,7 +1,5 @@
 package port
 
-import "github.com/jllopis/arcadia/connector"
-
 const (
 	INPUT = iota
 	OUTPUT
