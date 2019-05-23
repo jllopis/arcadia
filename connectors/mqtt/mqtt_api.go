@@ -2,6 +2,7 @@ package mqtt
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"strings"
 
@@ -19,7 +20,7 @@ func (c *Connector) ID() string {
 }
 
 func (c *Connector) mqttOnConnect(client MQTT.Client) {
-	log.Print("[MQTTConnector] f=mqttOnConnect status=Connected")
+	log.Print("[Connector] f=mqttOnConnect status=Connected")
 	for _, v := range c.subscriptions {
 		if v.Fn == nil && v.Ch == nil {
 			continue
@@ -35,19 +36,73 @@ func (c *Connector) mqttOnConnect(client MQTT.Client) {
 		}
 
 		if token := c.C.Subscribe(v.Options.Topic, v.Options.Qos, fn); token.Wait() && token.Error() != nil {
-			log.Printf("[MQTTConnector] f=mqttOnConnect status=resubscribe e=%s", token.Error().Error())
+			log.Printf("[Connector] f=mqttOnConnect status=resubscribe e=%s", token.Error().Error())
 		}
-		log.Printf("[MQTTConnector] f=mqttOnConnect status=resubscribe restarted subscription topic=%s", v.Options.Topic)
+		log.Printf("[Connector] f=mqttOnConnect status=resubscribe restarted subscription topic=%s", v.Options.Topic)
 	}
 }
 
-func (c *Connector) Listen(opts *connectors.SubscribeOptions, ch chan []byte) error {
-	if opts == nil {
-		if c.DefaultConsumeOpts != nil {
-			opts = c.DefaultConsumeOpts
-		} else {
-			return errors.New("opts cannot be nil")
+func (c *Connector) mqttLostConnection(client MQTT.Client, err error) {
+	log.Printf("[Connector] f=mqttLostConnection status=Lost connection broker e=%s", err.Error())
+}
+
+func (c *Connector) Put(opts *connectors.PublishOptions, msg []byte) error {
+	if opts == nil || c.defaultPutOpts != nil {
+		opts = c.defaultPutOpts
+	} else {
+		return errors.New("publish options cannot be nil")
+	}
+
+	var token MQTT.Token
+	if token = c.C.Publish(opts.Topic, opts.Qos, opts.Retained, msg); token.Wait() && token.Error() != nil {
+		log.Printf("[MQTTConnector] f=Put error=%s", token.Error().Error())
+		return token.Error()
+	}
+	return nil
+}
+
+func (c *Connector) Stream(opts *connectors.PublishOptions, ch chan []byte) error {
+	if opts == nil || c.defaultPutOpts != nil {
+		opts = c.defaultPutOpts
+	} else {
+		return errors.New("publish options cannot be nil")
+	}
+	go func() {
+		for {
+			select {
+			case msg := <-ch:
+				fmt.Println("[MQTTConnector] got stream message")
+				if err := c.Put(opts, msg); err != nil {
+					log.Printf("[MQTTConnector] f=Stream error: %s", err.Error())
+				}
+			}
 		}
+	}()
+	return nil
+}
+
+//func (c *Connector) On(opts interface{}, f func(c *MQTT.Client, msg MQTT.Message)) error {
+func (c *Connector) On(opts *connectors.SubscribeOptions, f func([]byte)) error {
+	if opts == nil || c.defaultConsumeOpts != nil {
+		opts = c.defaultConsumeOpts
+	} else {
+		return errors.New("publish options cannot be nil")
+	}
+	fn := func(c MQTT.Client, msg MQTT.Message) { f(msg.Payload()) }
+	if token := c.C.Subscribe(opts.Topic, opts.Qos, fn); token.Wait() && token.Error() != nil {
+		log.Printf("[MQTTConnector] f=On error=%s", token.Error().Error())
+		return token.Error()
+	}
+	log.Printf("[MQTTConnector] f=On status=started subscription topic=%s", opts.Topic)
+	c.subscriptions[opts.Topic] = &connectors.ConnectorSubscription{Options: opts, Fn: f, Class: "On"}
+	return nil
+}
+
+func (c *Connector) Listen(opts *connectors.SubscribeOptions, ch chan []byte) error {
+	if opts == nil || c.defaultConsumeOpts != nil {
+		opts = c.defaultConsumeOpts
+	} else {
+		return errors.New("subscription options cannot be nil")
 	}
 
 	// Add subscription first so onReceive doesn't panic if there is a retained message
@@ -59,7 +114,7 @@ func (c *Connector) Listen(opts *connectors.SubscribeOptions, ch chan []byte) er
 
 	if token := c.C.Subscribe(opts.Topic, opts.Qos, c.onReceive); token.Wait() && token.Error() != nil {
 		//	logger.Info("Listen", "error", token.Error().Error())
-		log.Printf("[MQTTConnector] f=Listen e=%s", token.Error().Error())
+		log.Printf("[Connector] f=Listen e=%s", token.Error().Error())
 
 		delete(c.subscriptions, opts.Topic)
 
@@ -79,10 +134,6 @@ func (c *Connector) onReceive(client MQTT.Client, msg MQTT.Message) {
 		}
 	}
 
-}
-
-func (c *Connector) mqttLostConnection(client MQTT.Client, err error) {
-	log.Printf("[MQTTConnector] f=mqttLostConnection status=Lost connection broker e=%s", err.Error())
 }
 
 func topicMatches(pattern, topic string) bool {
