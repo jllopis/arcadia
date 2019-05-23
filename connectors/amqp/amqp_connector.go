@@ -15,8 +15,9 @@ import (
 var _ connectors.Connector = (*Connector)(nil)
 
 type Connector struct {
-	URI string
-	C          *AMQP.Connection
+	uri           string
+	clientID      string
+	C             *AMQP.Connection
 	Channel       *AMQP.Channel
 	errChan       chan *AMQP.Error
 	cancelMon     chan bool
@@ -26,32 +27,30 @@ type Connector struct {
 	connected     bool
 }
 
-func NewConnector(uri string) *Connector {
-	if uri == "" {
+func New(host string) *Connector {
+	if host == "" {
 		log.Print("AMQP host cannot be empty")
 		return nil
 	}
 	conn := &Connector{
-		URI: uri,
-		cancelMon:        make(chan bool),
-		subscriptions:    make([]*connectors.ConnectorSubscription, 0),
-		closed:           make(chan error),
-		closedChannel:    make(chan error),
-		connected:        false,
-	}
-	if len(opts.ClientID) == 0 {
-		conn.ConnectorOptions.ClientID = GenID()
+		uri:           host,
+		clientID:      connectors.GenID(),
+		cancelMon:     make(chan bool),
+		subscriptions: make([]*connectors.ConnectorSubscription, 0),
+		closed:        make(chan error),
+		closedChannel: make(chan error),
+		connected:     false,
 	}
 
 	return conn
 }
 
 func (c *Connector) Name() string {
-	return c.ClientID
+	return c.clientID
 }
 
 func (c *Connector) ID() string {
-	return c.ClientID
+	return c.clientID
 }
 
 func (c *Connector) Dial() error {
@@ -85,7 +84,7 @@ func (c *Connector) dial(strategy retry.Strategy) (bool, error) {
 
 	for strategy.Next() {
 		if success := func() bool {
-			a.C, err = AMQP.Dial(c.uri)
+			c.C, err = AMQP.Dial(c.uri)
 
 			if err != nil {
 				log.Printf("[AMQPConnector] f=dial s=not connected e=%s", err.Error())
@@ -144,7 +143,7 @@ func (c *Connector) Monitor() {
 		select {
 		case ee := <-c.closed:
 			e := ee.(*AMQP.Error)
-			log.Info("[AMQPConnector] f=Monitor s=connection closed e=%s", e.Error())
+			log.Printf("[AMQPConnector] f=Monitor s=connection closed e=%s", e.Error())
 			err := c.Dial()
 			if err != nil {
 				log.Print("[AMQPConnector] f=Monitor s=cannot redial e=%s", err.Error())
@@ -304,7 +303,7 @@ func (c *Connector) On(opts *connectors.SubscribeOptions, f func(s []byte)) erro
 	}
 
 	c.subscriptions = append(c.subscriptions, &connectors.ConnectorSubscription{Options: opts, Fn: f, Ch: nil, Class: "On"})
-	log.Printf("[AMQPConnector] f=On s=new subscription, %d subscriptions total", len(a.subscriptions))
+	log.Printf("[AMQPConnector] f=On s=new subscription, %d subscriptions total", len(c.subscriptions))
 
 	return nil
 }
@@ -358,7 +357,7 @@ func (c *Connector) Listen(opts *connectors.SubscribeOptions, outch chan []byte)
 }
 
 func (c *Connector) consumeChan(opts *connectors.SubscribeOptions, outch chan []byte) error {
-	deliveries, err := a.Channel.Consume(
+	deliveries, err := c.Channel.Consume(
 		opts.Queue,            // name
 		opts.Consumer,         // consumerTag,
 		opts.AutoAck,          // noAck
@@ -390,7 +389,7 @@ func (c *Connector) handleChan(deliveries <-chan AMQP.Delivery, autoAck bool, ch
 }
 
 func (c *Connector) resubscribe() error {
-	log.Info("[AMQPConnector] f=resubscribe s=%d subscriptions", len(c.subscriptions))
+	log.Printf("[AMQPConnector] f=resubscribe s=%d subscriptions", len(c.subscriptions))
 	// Check registered queues already exist before trying to reconnect
 	ln := len(c.subscriptions)
 	for i, v := range c.subscriptions {
