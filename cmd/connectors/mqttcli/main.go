@@ -10,6 +10,11 @@ import (
 	"github.com/jllopis/arcadia/connectors/mqtt"
 )
 
+const (
+	TOPIC  = "test"
+	BROKER = "tcp://localhost:1883"
+)
+
 var mf = func(msg []byte) []byte {
 	return []byte(fmt.Sprintf("[SUBS] %s", msg))
 }
@@ -18,28 +23,98 @@ func main() {
 	setupSignals()
 
 	// MQTT Connector
-	subscriptionCh := make(chan []byte)
+	listenChannel := make(chan []byte)
 	mqttSubOpts := &connectors.SubscribeOptions{
-		Topic: "test",
+		Topic: TOPIC,
 		Qos:   mqtt.QoS_ZERO,
 	}
-	// mqttPubOpts := &connectors.PublishOptions{Topic: "test", Qos: mqtt.QoS_ZERO, Immediate: true}
-	mqttConnector := mqtt.New("tcp://localhost:1883").
+	mqttPubOpts := &connectors.PublishOptions{Topic: TOPIC, Qos: mqtt.QoS_ZERO, Immediate: true}
+	mqttConnector := mqtt.New(BROKER).
 		SetCleanSession(true).
 		SetClientID("ARCADIA-TEST-MQTT-1").
-		SetMaxReconnectInterval(30 * time.Second)
+		SetMaxReconnectInterval(30 * time.Second).
+		SetDefaultSubscribeOptions(mqttSubOpts).
+		SetDefaultPublishOptions(mqttPubOpts)
 
 	if err := mqttConnector.Connect(); err != nil {
 		log.Panicf("Can't connect to broker: %v\n", err)
 	}
+	defer mqttConnector.Disconnect()
 
-	mqttConnector.Listen(mqttSubOpts, subscriptionCh)
+	mqttConnector.Listen(nil, listenChannel)
 
-	for msg := range subscriptionCh {
-		fmt.Println(string(msg))
+	go func() {
+		for msg := range listenChannel {
+			fmt.Printf("Listen got: %s\n", string(msg))
+		}
+	}()
+
+	runMQTTOnReceiver()
+
+	go runMQTTPublisher()
+
+	go runMQTTStreamer()
+	time.Sleep(3 * time.Second)
+}
+
+func runMQTTPublisher() {
+	mqttPubOpts := &connectors.PublishOptions{Topic: TOPIC, Qos: mqtt.QoS_ZERO, Immediate: true}
+	mqttPublisher := mqtt.New(BROKER).
+		SetCleanSession(true).
+		SetClientID("ARCADIA-TEST-MQTT-PUBLISHER-1").
+		SetMaxReconnectInterval(30 * time.Second).
+		SetDefaultPublishOptions(mqttPubOpts)
+
+	if err := mqttPublisher.Connect(); err != nil {
+		log.Panicf("Can't connect to broker: %v\n", err)
 	}
+	defer mqttPublisher.Disconnect()
 
-	mqttConnector.Disconnect()
+	for i := 0; i < 10; i++ {
+		mqttPublisher.Put(nil, []byte(fmt.Sprintf("MSG %d", i)))
+	}
+}
+
+func runMQTTStreamer() {
+	mqttPubOpts := &connectors.PublishOptions{Topic: TOPIC, Qos: mqtt.QoS_ZERO, Immediate: true}
+	mqttStreamer := mqtt.New(BROKER).
+		SetCleanSession(true).
+		SetClientID("ARCADIA-TEST-MQTT-PUBLISHER-2").
+		SetMaxReconnectInterval(30 * time.Second).
+		SetDefaultPublishOptions(mqttPubOpts)
+
+	if err := mqttStreamer.Connect(); err != nil {
+		log.Panicf("Can't connect to broker: %v\n", err)
+	}
+	defer mqttStreamer.Disconnect()
+
+	strm := make(chan []byte)
+	err := mqttStreamer.Stream(nil, strm)
+	if err != nil {
+		log.Panicf("Can't setup a streamer. error: &s\n", err.Error())
+	}
+	for i := 0; i < 10; i++ {
+		strm <- []byte(fmt.Sprintf("STREAM MSG %d", i))
+	}
+}
+
+func runMQTTOnReceiver() {
+	mqttSubOpts := &connectors.SubscribeOptions{
+		Topic: TOPIC,
+		Qos:   mqtt.QoS_ZERO,
+	}
+	mqttConnector := mqtt.New(BROKER).
+		SetCleanSession(true).
+		SetClientID("ARCADIA-TEST-MQTT-SUBSCRIBER-2").
+		SetMaxReconnectInterval(30 * time.Second).
+		SetDefaultSubscribeOptions(mqttSubOpts)
+
+	if err := mqttConnector.Connect(); err != nil {
+		log.Panicf("Can't connect to broker: %v\n", err)
+	}
+	// defer mqttConnector.Disconnect()
+
+	mqttConnector.On(nil, recvFunc)
 }
 
 // setupSignals configura la captura de señales de sistema y actúa basándose en ellas
@@ -51,4 +126,8 @@ func setupSignals() {
 			os.Exit(1)
 		}
 	}()
+}
+
+func recvFunc(msg []byte) {
+	fmt.Printf("Applying func on received message. Payload: %s\n", string(msg))
 }

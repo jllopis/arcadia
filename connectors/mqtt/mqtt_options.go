@@ -6,9 +6,20 @@ import (
 	"time"
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
+	"github.com/jllopis/arcadia/connectors"
 )
 
 type mqttOption func(*MQTT.ClientOptions)
+
+func (c *Connector) SetDefaultPublishOptions(opts *connectors.PublishOptions) *Connector {
+	c.defaultPutOpts = opts
+	return c
+}
+
+func (c *Connector) SetDefaultSubscribeOptions(opts *connectors.SubscribeOptions) *Connector {
+	c.defaultConsumeOpts = opts
+	return c
+}
 
 // AddBroker adds a broker URI to the list of brokers to be used. The format should be scheme://host:port Where "scheme" is one of "tcp", "ssl", or "ws", "host" is the ip-address (or hostname) and "port" is the port on which the broker is accepting connections.
 //

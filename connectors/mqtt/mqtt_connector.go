@@ -2,6 +2,7 @@ package mqtt
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"time"
 
@@ -25,8 +26,8 @@ type Connector struct {
 	name               string
 	C                  MQTT.Client
 	subscriptions      map[string]*connectors.ConnectorSubscription
-	DefaultPutOpts     *connectors.PublishOptions
-	DefaultConsumeOpts *connectors.SubscribeOptions
+	defaultPutOpts     *connectors.PublishOptions
+	defaultConsumeOpts *connectors.SubscribeOptions
 	clientOptions      *MQTT.ClientOptions
 }
 
@@ -113,4 +114,8 @@ func (c *Connector) Disconnect() {
 func (c *Connector) Close() error {
 	c.Disconnect()
 	return nil
+}
+
+func (c *Connector) String() string {
+	return fmt.Sprintf("Type: MQTT, Brokers: %+v", c.clientOptions.Servers)
 }
