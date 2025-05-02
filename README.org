@@ -1,0 +1,84 @@
+#+title: Go FBP Automation Framework
+#+author: Joan Llopis
+#+date: <2025-05-02 Fri>
+
+=arcadia= tiene como objetivo desarrollar un framework Go basado en Flow-Based Programming (FBP), diseñado para la automatización de tareas en los ámbitos de _SysOps_, _DevOps_ y _DevSecOps_. Buscamos crear una plataforma robusta, flexible y escalable que permita definir, componer y ejecutar flujos de trabajo complejos utilizando un enfoque modular.
+
+* Objetivos:
+
+- Proporcionar un núcleo FBP eficiente y concurrente implementado en Go.
+- Facilitar la creación de componentes reutilizables para tareas comunes (ej. ejecución de comandos remotos, manipulación de archivos, interacciones con APIs, escaneo de seguridad, etc).
+- Permitir la definición de flujos de trabajo mediante una representación clara y legible (potencialmente con herramientas visuales en el futuro).
+- Asegurar la resiliencia y observabilidad de los flujos de trabajo automatizados.
+- Fomentar la colaboración entre equipos al proporcionar un lenguaje común para describir procesos de automatización.
+
+* ¿Qué es Flow-Based Programming (FBP)?
+
+Flow-Based Programming (FBP) es un paradigma de programación que define las aplicaciones como redes de "cajas negras" (procesos) que intercambian datos a través de conexiones predefinidas (canales). En lugar de la secuenciación tradicional de instrucciones, FBP se centra en el flujo de información a través de la red de procesos.
+
+Conceptos clave de FBP:
+
+- *Procesos:* Unidades de computación independientes que realizan una función específica. Actúan como "cajas negras" con puertos de entrada y salida definidos. No tienen conocimiento directo de la lógica interna de otros procesos.
+- *Paquetes de Información (IPs):* Chunks de datos inmutables que viajan a través de las conexiones entre procesos. Representan la información que está siendo procesada.
+- *Puertos:* Puntos de conexión en los procesos a través de los cuales los IPs entran o salen. Los puertos tienen nombres y tipos definidos.
+- *Conexiones:* Canales con capacidad limitada que conectan los puertos de salida de un proceso con los puertos de entrada de otro. Las conexiones son direccionales y aseguran la entrega ordenada de los IPs.
+- *Red (Network):* La definición global de cómo los procesos están conectados entre sí a través de las conexiones. La lógica de la aplicación reside en la estructura de la red, no en la lógica interna de los procesos individuales.
+
+En FBP, los procesos se ejecutan de forma concurrente, activándose cuando hay IPs disponibles en sus puertos de entrada y pausándose si los canales de salida están llenos. La red define el flujo de datos, desacoplando la lógica de negocio de la secuenciación del control.
+
+* ¿Por qué FBP es una buena solución para automatizar tareas de SysOps, DevOps y DevSecOps?
+
+FBP ofrece varias ventajas que lo hacen particularmente adecuado para la automatización en estos dominios:
+
+- *Modularidad y Reusabilidad:* Las tareas de SysOps, DevOps y DevSecOps a menudo implican una serie de pasos discretos (ej. conectar a un servidor, ejecutar un script, parsear la salida, tomar una decisión). Con FBP, cada uno de estos pasos puede encapsularse en un componente (proceso) reutilizable. Estos componentes pueden combinarse de diferentes maneras para crear nuevos flujos de trabajo sin modificar el código interno de los componentes. Esto reduce la duplicación y acelera el desarrollo de nuevas automatizaciones.
+
+- *Desacoplamiento:* Los procesos en FBP están inherentemente desacoplados. Solo interactúan a través de sus puertos y los IPs que intercambian. Esto significa que la implementación interna de un componente puede cambiar sin afectar a otros componentes en la red, siempre y cuando la interfaz (puertos) permanezca constante. Esto es crucial en entornos donde las herramientas y tecnologías subyacentes cambian con frecuencia.
+
+- *Claridad y Visualización:* La naturaleza basada en red de FBP facilita la representación visual de los flujos de trabajo. Un diagrama FBP puede mostrar claramente la secuencia de operaciones y cómo los datos fluyen a través del sistema, lo que mejora la comprensión, el mantenimiento y la comunicación entre los miembros del equipo (incluyendo perfiles no técnicos).
+
+- *Concurrencia Natural:* FBP promueve la concurrencia al permitir que los procesos se ejecuten de forma independiente. Esto es beneficioso para tareas de automatización que pueden implicar operaciones que esperan (ej. esperando la respuesta de una API o la finalización de un comando remoto), permitiendo que otros procesos continúen trabajando. La implementación en Go, con sus goroutines y canales, se alinea perfectamente con este paradigma.
+
+- *Flexibilidad y Adaptabilidad:* Los flujos de trabajo de automatización a menudo necesitan ser adaptados para diferentes entornos o casos de uso. Con FBP, esto se logra reconfigurando la red de componentes existentes en lugar de escribir nuevo código monolítico. Esto permite una mayor agilidad y respuesta a los cambios en los requisitos operativos o de seguridad.
+
+- *Testing Simplificado:* Dado que los componentes son unidades independientes con interfaces bien definidas, pueden ser probados de forma aislada. Además, las redes FBP pueden ser probadas inyectando datos de prueba en los puertos de entrada y verificando la salida en los puertos correspondientes.
+
+En resumen, la adopción de FBP para la automatización de SysOps, DevOps y DevSecOps puede llevar a sistemas de automatización más mantenibles, flexibles, comprensibles y robustos, facilitando la construcción de pipelines complejos para despliegue, monitoreo, respuesta a incidentes, análisis de seguridad y más.
+
+* Estado del Proyecto
+
+(Aquí se podría añadir información sobre el estado actual del proyecto, si está en fases iniciales, si ya hay componentes básicos implementados, etc. Este es un marcador de posición).
+
+* Primeros Pasos
+
+(Aquí se podría añadir información sobre cómo empezar a usar el framework, cómo instalarlo, cómo crear un primer flujo simple, etc. Este es un marcador de posición).
+
+* Organización del proyecto
+
+** Estructura de directorios
+
+Para facilitar un desarrollo modular, mantenible y extensible, se propone organizar el código en paquetes separados por responsabilidad:
+
+- ~cmd/~ – Contendrá las aplicaciones ejecutables (command-line interface y servidor). Por ejemplo:
+    - ~cmd/arcadia/main.go~ es la entrada para la herramienta CLI (operaciones de ejecución de flujos, listar, etc.).
+    - ~cmd/arcadiad/main.go~ es la entrada para el modo servidor (/daemon/).
+- ~internal/~ – Módulos internos del framework (no expuestos como API pública), separados por dominios:
+    - ~internal/graph/~: Definición de las estructuras fundamentales FBP – Nodo, Puerto, Conexión, Grafo – y lógica relacionada (construcción de grafos, validación). Por ejemplo, los archivos ~node.go~, ~graph.go~, ~connection.go~, con las definiciones y métodos asociados, se encuentran en este directorio.
+    - ~internal/engine/~: Implementación del =Engine= y posiblemente subcomponentes de ejecución. Aquí vivirán ~engine.go~ (orquestador principal) y subcomponentes como ~scheduler.go~ (con la interfaz ~Scheduler~ y una o más implementaciones: local, etc.), así como gestión de ejecuciones en curso. Si en el futuro se añade clusterización, podría haber archivos como ~cluster.go~ o un subpaquete ~engine/cluster~ para la lógica de coordinación.
+    - ~internal/plugin/~: Código relacionado con la carga de plugins =Lua/WASM=. Dentro de este existen dos subdirectorios:
+        - ~internal/plugin/lua/~: integraciones específicas con Lua (por ejemplo, inicialización de la VM Lua, adaptación de tipos Go <-> Lua, definiciones de LuaNode).
+        - ~internal/plugin/wasm/~: similar para WASM (inicializar runtime WASM como =Wazero=, cargar módulos, adaptadores de WasmNode).
+                 Alternativamente, si la lógica no es muy extensa, ~plugin_manager.go~ podría residir en ~internal/plugin~ y contener internamente el manejo para ambos.
+    - ~internal/nodes/~: Implementaciones de nodos /built-in/ en Go para funciones comunes de SysOps. Por ejemplo, ~execnode.go~ (un nodo que ejecuta comandos del sistema), ~httpnode.go~ (un nodo que realiza peticiones HTTP), ~filternode.go~ (un nodo que filtra datos), etc.
+    - ~internal/trigger/~: Implementaciones de distintos /triggers/. Contiene archivos como ~cron_trigger.go~, ~http_trigger.go~.  Este paquete define la interfaz =Trigger= y contiene los /triggers/ disponibles.
+    - ~internal/cluster/~ (Opcional): Módulo encargado de la comunicación entre instancias. Se definen mensajes o servicios para enviar trabajos al cluster, o el protocolo de comunicación y sincronización utilizado. Este paquete podría contener estructuras como ~WorkerNode~ (agente remoto) y controladores para sincronización. En esta fase inicial este paquete permanecerá vacío.
+- ~pkg/~ – Las partes del framework expuestas como biblioteca para otros programas (embedding del motor o creación de flujos programáticamente).
+- ~configs/~ – (Opcional) Archivos de configuración como definiciones de flujos o scripts Lua/WASM entregados con el framework.
+- ~scripts/~ – (Opcional) Scripts de automatización (ej. para construir imágenes, instalar el servicio, etc.).
+- ~docs/~ – Documentación del proyecto.
+- ~plugins/~ – Este es un directorio en tiempo de ejecución (no de código) donde se ubican los /plugins/ externos. Por ejemplo: ~plugins/lua/~ contendrá los archivos =.lua= que implementan nodos personalizados y ~plugins/wasm/~ los binarios =.wasm=. El framework (~PluginManager~) lee de aquí para cargar los módulos de extensión.
+
+Con esta estructura se trata de separar conceptos: el núcleo FBP (grafo, nodos, conexiones) está aislado de los detalles de Engine/Triggers, y las integraciones de lenguajes (Lua/WASM) están encapsuladas en su módulo. De esta forma se pretende facilitar el mantenimiento y la extensión del /framework/.
+
+* Contribuciones
+
+(Aquí se añadiría información sobre cómo la gente puede contribuir al proyecto, guidelines, etc. Este es un marcador de posición).
